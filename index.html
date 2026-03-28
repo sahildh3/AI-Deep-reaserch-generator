@@ -1,0 +1,2032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Deep Research Generator v10</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0b0c10;
+    --surface:  #12141a;
+    --border:   rgba(255,255,255,0.07);
+    --accent:   #c9a84c;
+    --accent2:  #e8c97a;
+    --text:     #e8e4dc;
+    --muted:    #6b6660;
+    --green:    #4caf7d;
+    --red:      #e05c5c;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Source Serif 4', serif; }
+  body { overscroll-behavior-y: none; } /* [UPGRADE 2] Prevent pull-to-refresh on mobile */
+
+  body::before {
+    content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 200px; opacity: 0.35;
+  }
+
+  .app { position:relative; z-index:1; min-height:100vh; display:flex; flex-direction:column; }
+
+  header {
+    padding: 32px 24px 20px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(22px, 5vw, 38px);
+    font-weight: 900; letter-spacing: -0.5px;
+    color: var(--accent2); line-height: 1.1;
+  }
+  header p { margin-top: 6px; font-size: 13px; color: var(--muted); font-style: italic; }
+
+  .groq-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 10px; padding: 4px 12px;
+    background: rgba(249,115,22,0.1);
+    border: 1px solid rgba(249,115,22,0.25);
+    border-radius: 20px; font-size: 11px; color: #f97316;
+    letter-spacing: 0.5px;
+  }
+  .groq-badge span { font-size: 14px; }
+
+  main { flex:1; padding: 24px 16px 40px; max-width: 700px; margin: 0 auto; width:100%; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px; margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 14px;
+  }
+
+  textarea, input[type=text], input[type=password] {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px;
+    color: var(--text); font-family: 'Source Serif 4', serif;
+    font-size: 14px; resize: none; outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea:focus, input:focus { border-color: rgba(201,168,76,0.4); }
+  textarea { min-height: 80px; }
+  label {
+    display: block; font-size: 11px;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .field { margin-bottom: 14px; }
+
+  .row { display: flex; gap: 10px; }
+  .row .field { flex:1; }
+  select {
+    width:100%; background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border); border-radius:10px;
+    padding: 11px 14px; color: var(--text);
+    font-family: 'Source Serif 4', serif; font-size:14px;
+    outline:none; appearance:none;
+  }
+
+  /* API key row */
+  .key-row { display: flex; gap: 8px; align-items: flex-end; }
+  .key-row .field { flex: 1; margin-bottom: 0; }
+  #saveKeyBtn {
+    padding: 12px 16px; background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.3); border-radius: 10px;
+    color: var(--accent); font-size: 12px; font-family: 'Source Serif 4', serif;
+    cursor: pointer; white-space: nowrap; transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  #saveKeyBtn:hover { background: rgba(201,168,76,0.25); }
+  .key-saved { font-size: 11px; color: var(--green); margin-top: 5px; display: none; }
+
+  /* API config card */
+  .api-card {
+    background: rgba(249,115,22,0.04);
+    border: 1px solid rgba(249,115,22,0.15);
+    border-radius: 16px; padding: 20px; margin-bottom: 16px;
+  }
+  .api-card .card-title { color: #f97316; }
+
+
+  /* Cerebras card */
+  .cb-card {
+    background: rgba(234,179,8,0.04);
+    border: 1px solid rgba(234,179,8,0.2);
+    border-radius: 16px; padding: 20px; margin-bottom: 16px;
+  }
+  .cb-card .card-title { color: #facc15; }
+
+  /* Routing visual */
+  .route-flow {
+    display: flex; align-items: center; gap: 6px;
+    flex-wrap: wrap; margin-top: 10px;
+    font-size: 11px; color: var(--muted);
+  }
+  .route-node {
+    padding: 3px 9px; border-radius: 20px;
+    font-size: 10px; letter-spacing: 0.5px; font-weight: 600;
+  }
+  .route-node.cb  { background: rgba(234,179,8,0.15);  color: #facc15; border: 1px solid rgba(234,179,8,0.3); }
+  .route-node.gr  { background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.3); }
+  .route-arrow { color: var(--muted); font-size: 12px; }
+  .key-pill {
+    display: inline-block; font-size: 10px; padding: 2px 7px;
+    border-radius: 10px; margin-left: 6px; vertical-align: middle;
+    font-family: monospace; letter-spacing: 0.3px;
+  }
+  .key-pill.ok   { background: rgba(76,175,125,0.15); color: var(--green); border: 1px solid rgba(76,175,125,0.3); }
+  .key-pill.dead { background: rgba(224,92,92,0.12);  color: var(--red);   border: 1px solid rgba(224,92,92,0.25); }
+  .key-pill.idle { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+
+  #generateBtn {
+    width: 100%; padding: 15px;
+    background: linear-gradient(135deg, #c9a84c, #a07830);
+    border: none; border-radius: 12px;
+    color: #1a1200; font-family: 'Playfair Display', serif;
+    font-size: 16px; font-weight: 700; letter-spacing: 0.5px;
+    cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+  }
+  #generateBtn:hover { opacity: 0.9; }
+  #generateBtn:active { transform: scale(0.98); }
+  #generateBtn:disabled { opacity: 0.35; cursor: default; }
+
+  #progressCard { display:none; }
+  .progress-bar-track {
+    height: 6px; background: rgba(255,255,255,0.07);
+    border-radius: 3px; overflow: hidden; margin-bottom: 10px;
+  }
+  #progressBar {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px; width: 0%; transition: width 0.4s ease;
+  }
+  #statusText { font-size: 12px; color: var(--muted); font-style: italic; }
+  #sectionList { margin-top: 12px; max-height: 180px; overflow-y: auto; }
+  .section-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 0; border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--muted);
+  }
+  .section-item.done { color: var(--green); }
+  .section-item.active { color: var(--accent2); }
+  .section-item.error { color: var(--red); }
+  .dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; background: currentColor; }
+  .dot.spin {
+    background: transparent;
+    border: 2px solid var(--accent2);
+    border-top-color: transparent;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #downloadHtmlBtn {
+    width:100%; padding:14px;
+    background: rgba(76,175,125,0.15);
+    border: 1px solid var(--green); border-radius:12px;
+    color: var(--green); font-family: 'Playfair Display', serif;
+    font-size: 15px; font-weight:700; cursor:pointer;
+    transition: background 0.2s;
+  }
+  #downloadHtmlBtn:hover { background: rgba(76,175,125,0.25); }
+  #downloadTxtBtn {
+    width:100%; padding:14px;
+    border-radius:12px;
+    font-family: 'Playfair Display', serif;
+    font-size: 15px; font-weight:700; cursor:pointer;
+    transition: background 0.2s;
+  }
+  #downloadTxtBtn:hover { background: rgba(201,168,76,0.2) !important; }
+  #downloadPdfBtn {
+    width:100%; padding:14px;
+    border-radius:12px;
+    font-family: 'Playfair Display', serif;
+    font-size: 15px; font-weight:700; cursor:pointer;
+    background: rgba(99,102,241,0.12);
+    border: 1px solid rgba(99,102,241,0.4);
+    color: #a5b4fc;
+    transition: background 0.2s;
+    position: relative;
+  }
+  #downloadPdfBtn:hover { background: rgba(99,102,241,0.22); }
+  #downloadPdfBtn:disabled { opacity: 0.45; cursor: default; }
+  #downloadDocxBtn {
+    width:100%; padding:14px;
+    border-radius:12px;
+    font-family: 'Playfair Display', serif;
+    font-size: 15px; font-weight:700; cursor:pointer;
+    background: rgba(20,184,166,0.1);
+    border: 1px solid rgba(20,184,166,0.4);
+    color: #5eead4;
+    transition: background 0.2s;
+  }
+  #downloadDocxBtn:hover { background: rgba(20,184,166,0.2); }
+  #downloadDocxBtn:disabled { opacity: 0.45; cursor: default; }
+  .pdf-spinner {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid rgba(165,180,252,0.3);
+    border-top-color: #a5b4fc;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    margin-right: 6px; vertical-align: middle;
+  }
+
+
+  #previewCard { display:none; }
+  #previewFrame { width:100%; height:400px; border:none; border-radius:10px; background:#fff; }
+
+  #errorBox {
+    display:none; padding:12px 14px;
+    background: rgba(224,92,92,0.1);
+    border: 1px solid rgba(224,92,92,0.3);
+    border-radius:10px; font-size:12px; color:var(--red);
+    margin-top:12px;
+  }
+
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius:2px; }
+
+  /* [UPGRADE 4] ─── Inline Retry Button ─── */
+  .retry-btn {
+    margin-left: auto; padding: 3px 9px;
+    background: rgba(201,168,76,0.1);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 6px; color: var(--accent);
+    font-size: 10px; cursor: pointer; flex-shrink: 0;
+    font-family: 'Source Serif 4', serif; letter-spacing: 0.3px;
+    transition: background 0.2s;
+  }
+  .retry-btn:hover { background: rgba(201,168,76,0.22); }
+  .retry-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* ─── Token Usage Tracker ─── */
+  .usage-card {
+    background: rgba(99,179,237,0.04);
+    border: 1px solid rgba(99,179,237,0.18);
+    border-radius: 16px; padding: 20px; margin-bottom: 16px;
+  }
+  .usage-card .card-title { color: #63b3ed; }
+  .usage-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+  }
+  .usage-stat {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; text-align: center;
+  }
+  .usage-stat .stat-val {
+    font-size: 20px; font-weight: 700; font-family: monospace;
+    color: #63b3ed; display: block; margin-bottom: 2px;
+  }
+  .usage-stat .stat-lbl {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--muted);
+  }
+  .usage-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }
+  .usage-table th {
+    text-align: left; padding: 5px 6px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    font-size: 10px;
+  }
+  .usage-table td { padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); color: var(--text); font-family: monospace; }
+  .usage-table tr:last-child td { border-bottom: none; }
+  .usage-table .provider-groq  { color: #f97316; }
+  .usage-table .provider-cb    { color: #facc15; }
+  .usage-table .total-row td   { color: var(--accent2); font-weight: 700; border-top: 1px solid var(--border); }
+  .usage-calllog { margin-top: 12px; max-height: 160px; overflow-y: auto; }
+  .call-item {
+    display: flex; align-items: center; gap: 8px; padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 11px;
+  }
+  .call-item:last-child { border-bottom: none; }
+  .call-badge {
+    font-size: 9px; padding: 2px 7px; border-radius: 10px; font-family: monospace;
+    flex-shrink: 0; font-weight: 600; letter-spacing: 0.3px;
+  }
+  .call-badge.gr { background: rgba(249,115,22,0.15); color:#f97316; border:1px solid rgba(249,115,22,0.3); }
+  .call-badge.cb { background: rgba(234,179,8,0.15);  color:#facc15; border:1px solid rgba(234,179,8,0.3); }
+  .call-desc { color: var(--muted); flex:1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .call-tokens { color: var(--text); font-family: monospace; font-size: 11px; flex-shrink: 0; }
+  .call-remaining { font-size: 10px; color: var(--green); flex-shrink: 0; }
+  #usageResetBtn {
+    margin-top: 12px; width: 100%; padding: 9px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--muted); font-size: 11px;
+    font-family: 'Source Serif 4', serif; cursor: pointer; transition: background 0.2s;
+  }
+  #usageResetBtn:hover { background: rgba(255,255,255,0.07); }
+
+  /* ─── API Test Panel ─── */
+  .test-panel {
+    margin-top: 14px; padding: 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .test-panel-title {
+    font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 10px; display: flex;
+    align-items: center; gap: 8px;
+  }
+  .test-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+  }
+  .test-row:last-child { border-bottom: none; }
+  .test-row-label { color: var(--muted); font-family: monospace; font-size: 11px; }
+  .test-badge {
+    font-size: 10px; padding: 4px 9px; border-radius: 10px;
+    font-family: monospace; letter-spacing: 0.3px; font-weight: 600;
+    max-width: 200px; word-break: break-word; text-align: right; line-height: 1.4;
+  }
+  .test-badge.pending { background: rgba(255,255,255,0.06); color: var(--muted); border: 1px solid var(--border); }
+  .test-badge.testing { background: rgba(201,168,76,0.1); color: var(--accent); border: 1px solid rgba(201,168,76,0.3); animation: pulse 1s infinite; }
+  .test-badge.ok      { background: rgba(76,175,125,0.15); color: var(--green); border: 1px solid rgba(76,175,125,0.3); }
+  .test-badge.fail    { background: rgba(224,92,92,0.12);  color: var(--red);   border: 1px solid rgba(224,92,92,0.25); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  #testAllBtn {
+    width: 100%; margin-top: 14px; padding: 11px;
+    background: rgba(201,168,76,0.08);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 10px; color: var(--accent);
+    font-size: 13px; font-family: 'Source Serif 4', serif;
+    cursor: pointer; transition: background 0.2s; letter-spacing: 0.3px;
+  }
+  #testAllBtn:hover { background: rgba(201,168,76,0.18); }
+  #testAllBtn:disabled { opacity: 0.4; cursor: default; }
+  .test-summary {
+    margin-top: 8px; font-size: 11px; color: var(--muted);
+    text-align: center; font-style: italic; min-height: 16px;
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Deep Research Generator <span style="font-size:16px;color:var(--muted);font-weight:400;">v8</span></h1>
+    <p>Enter a topic — get a fully written, multi-section research document</p>
+    <div class="groq-badge"><span>⚡</span> Powered by Groq — Free &amp; Fast</div>
+  </header>
+
+  <main>
+
+    <!-- API Config Card -->
+    <div class="api-card">
+      <div class="card-title">⚙ Groq API Setup</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">Add up to 4 keys — more keys = faster generation. Only Key 1 is required.</div>
+
+      <div class="field">
+        <label>Key 1 (Required)</label>
+        <input type="password" id="apiKey1" placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx"/>
+      </div>
+      <div class="field">
+        <label>Key 2 (Optional)</label>
+        <input type="password" id="apiKey2" placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx"/>
+      </div>
+      <div class="field">
+        <label>Key 3 (Optional)</label>
+        <input type="password" id="apiKey3" placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx"/>
+      </div>
+      <div class="field">
+        <label>Key 4 (Optional)</label>
+        <input type="password" id="apiKey4" placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx"/>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button id="saveKeyBtn" style="flex:1;padding:11px;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.3);border-radius:10px;color:var(--accent);font-size:13px;font-family:'Source Serif 4',serif;cursor:pointer;">Save Keys</button>
+      </div>
+      <div class="key-saved" id="keySaved">✓ Keys saved locally</div>
+      <div id="keyStatus" style="font-size:11px;color:var(--green);margin-top:6px;"></div>
+
+      <div class="field" style="margin-bottom:0">
+        <label>Groq Model</label>
+        <select id="modelSelect">
+          <option value="llama-3.3-70b-versatile">Llama 3.3 70B — Best Quality ⭐</option>
+          <option value="llama3-70b-8192">Llama 3 70B — Fast</option>
+          <option value="mixtral-8x7b-32768">Mixtral 8x7B — Large Context</option>
+          <option value="gemma2-9b-it">Gemma 2 9B — Lightweight</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Cerebras Card -->
+    <div class="cb-card">
+      <div class="card-title">⚡ Cerebras Keys</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">
+        1,000,000 tokens/day free — Llama 3.1 8B is fast and reliable. Get keys at
+        <a href="https://cloud.cerebras.ai" target="_blank" style="color:#facc15;text-decoration:none;">cloud.cerebras.ai</a>
+      </div>
+      <div class="field">
+        <label>Cerebras Key 1</label>
+        <input type="password" id="cbKey1" placeholder="csk-xxxxxxxxxxxxxxxxxxxxxxxx"/>
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Cerebras Key 2 (Optional)</label>
+        <input type="password" id="cbKey2" placeholder="csk-xxxxxxxxxxxxxxxxxxxxxxxx"/>
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Cerebras Model</label>
+        <select id="cbModelSelect">
+          <option value="llama3.1-8b">Llama 3.1 8B — Fast &amp; Reliable ⭐</option>
+          <option value="llama-3.3-70b">Llama 3.3 70B — Best Quality</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button id="saveCbKeyBtn" style="flex:1;padding:11px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.25);border-radius:10px;color:#facc15;font-size:13px;font-family:'Source Serif 4',serif;cursor:pointer;">Save Cerebras Keys</button>
+      </div>
+      <div class="key-saved" id="cbKeySaved" style="color:#facc15;">✓ Cerebras keys saved</div>
+      <div id="cbKeyStatus" style="font-size:11px;color:#facc15;margin-top:4px;"></div>
+    </div>
+
+
+
+    <!-- Routing Strategy Visual -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">🗺 Request Routing Strategy</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">How each API request is assigned automatically:</div>
+      <div class="route-flow">
+        <span class="route-node cb">Cerebras</span>
+        <span class="route-arrow">↔</span>
+        <span class="route-node gr">Groq 1</span>
+        <span class="route-arrow">↔</span>
+        <span class="route-node cb">Cerebras</span>
+        <span class="route-arrow">↔</span>
+        <span class="route-node gr">Groq 2</span>
+        <span class="route-arrow">↔</span>
+        <span class="route-node cb">Cerebras…</span>
+      </div>
+      <div id="routeStatus" style="font-size:11px;color:var(--muted);margin-top:10px;font-style:italic;">—</div>
+    </div>
+
+    <!-- API Key Test Panel -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">🔬 API Key Health Check</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">
+        Tests each key with a minimal live request — confirms connectivity before a long generation run.
+      </div>
+
+      <div class="test-panel">
+        <div class="test-panel-title">
+          <span>Key Status</span>
+        </div>
+        <div id="testRows">
+          <div style="font-size:11px;color:var(--muted);font-style:italic;">No keys entered yet.</div>
+        </div>
+      </div>
+
+      <button id="testAllBtn">⚡ Test All Keys</button>
+      <div class="test-summary" id="testSummary"></div>
+    </div>
+
+    <!-- Input Card -->
+    <div class="card">
+      <div class="card-title">Research Topic</div>
+
+      <div class="field">
+        <label>Topic / Title</label>
+        <textarea id="topicInput" placeholder="e.g. The History and Chemistry of Roman Concrete, or The Economics of Renewable Energy Transition…"></textarea>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Target Length</label>
+          <select id="lengthSelect">
+            <option value="10">~10 pages</option>
+            <option value="20">~20 pages</option>
+            <option value="40">~40 pages</option>
+            <option value="60">~60 pages</option>
+            <option value="80" selected>~80 pages</option>
+            <option value="100">~100 pages</option>
+            <option value="150">~150 pages ⚡ 2+ keys</option>
+            <option value="200">~200 pages ⚡ 3+ keys</option>
+            <option value="250">~250 pages ⚡ 4 keys</option>
+            <option value="300">~300 pages ⚡ 4 keys</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Writing Style</label>
+          <select id="styleSelect">
+            <option value="academic">Academic</option>
+            <option value="professional">Professional</option>
+            <option value="detailed">Detailed &amp; Technical</option>
+            <option value="accessible">Accessible / General</option>
+            <option value="audiobook">🎧 Audiobook Narration</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Additional Instructions (optional)</label>
+        <input type="text" id="extraInput" placeholder="e.g. Focus on modern applications, include case studies…"/>
+      </div>
+
+      <button id="generateBtn">Generate Research Document</button>
+      <div id="errorBox"></div>
+    </div>
+
+    <!-- Progress Card -->
+    <div class="card" id="progressCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div class="card-title" style="margin-bottom:0;">Generating</div>
+        <button id="stopBtn" style="display:none;padding:7px 14px;background:rgba(224,92,92,0.15);border:1px solid rgba(224,92,92,0.4);border-radius:8px;color:var(--red);font-size:12px;font-family:'Source Serif 4',serif;cursor:pointer;letter-spacing:0.3px;">⏹ Stop</button>
+      </div>
+      <div class="progress-bar-track"><div id="progressBar"></div></div>
+      <div id="statusText">Starting…</div>
+      <div id="sectionList"></div>
+    </div>
+
+    <!-- Download -->
+    <div id="downloadBtns" style="display:none;gap:10px;margin-bottom:16px;flex-direction:column;">
+      <button id="downloadHtmlBtn">⬇ Save as HTML File</button>
+      <button id="downloadTxtBtn" style="background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);color:var(--accent);">⬇ Save as Plain Text (.txt)</button>
+      <button id="downloadPdfBtn">⬇ Save as PDF File</button>
+      <button id="downloadDocxBtn">⬇ Save as Word (.doc)</button>
+    </div>
+
+    <!-- Token Usage Tracker -->
+    <div class="usage-card" id="usageCard">
+      <div class="card-title">&#128202; Token Usage &amp; API Stats</div>
+      <div class="usage-grid">
+        <div class="usage-stat"><span class="stat-val" id="totalTokensVal">0</span><span class="stat-lbl">Total Tokens Used</span></div>
+        <div class="usage-stat"><span class="stat-val" id="totalCallsVal">0</span><span class="stat-lbl">API Calls Made</span></div>
+        <div class="usage-stat"><span class="stat-val" id="promptTokensVal">0</span><span class="stat-lbl">Prompt Tokens</span></div>
+        <div class="usage-stat"><span class="stat-val" id="completionTokensVal">0</span><span class="stat-lbl">Completion Tokens</span></div>
+      </div>
+      <div style="font-size:10px;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">Per-Key Breakdown</div>
+      <table class="usage-table">
+        <thead><tr><th>Key</th><th>Calls</th><th>Prompt</th><th>Completion</th><th>Total</th><th>Remaining*</th></tr></thead>
+        <tbody id="usageTableBody"><tr><td colspan="6" style="color:var(--muted);font-family:sans-serif;font-size:11px;">No calls yet.</td></tr></tbody>
+      </table>
+      <div style="font-size:10px;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin:12px 0 4px;">Call Log</div>
+      <div class="usage-calllog" id="usageCallLog"><div style="font-size:11px;color:var(--muted);font-style:italic;">No calls yet.</div></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:8px;font-style:italic;">* Remaining from Groq rate-limit headers (resets per min/day). Cerebras: 1M tokens/day.</div>
+      <button id="usageResetBtn">Reset Usage Stats</button>
+    </div>
+
+    <!-- Preview -->
+    <div class="card" id="previewCard">
+      <div class="card-title">Preview</div>
+      <iframe id="previewFrame"></iframe>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ─── Wake Lock (keep screen on during generation) ────────────────────────────
+let wakeLock = null;
+let noSleepAudio = null;   // fallback: silent audio loop keeps CPU/screen alive
+
+async function requestWakeLock() {
+  // Method 1: Screen Wake Lock API
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+    }
+  } catch(e) { /* not supported */ }
+
+  // Method 2: Silent audio loop (works in Chrome/Brave on Android when WakeLock is unreliable)
+  try {
+    if (!noSleepAudio) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); // 1s silent buffer
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.connect(ctx.destination);
+      src.start(0);
+      noSleepAudio = { ctx, src };
+    }
+  } catch(e) { /* audio not available */ }
+}
+
+async function releaseWakeLock() {
+  try { if (wakeLock) { await wakeLock.release(); wakeLock = null; } } catch(e) {}
+  try {
+    if (noSleepAudio) {
+      noSleepAudio.src.stop();
+      noSleepAudio.ctx.close();
+      noSleepAudio = null;
+    }
+  } catch(e) {}
+}
+
+// Re-acquire wake lock when tab becomes visible — but ONLY via a user gesture,
+// because mobile browsers (Chrome/Brave Android) block AudioContext.resume()
+// without a fresh gesture after the tab was backgrounded.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && document.getElementById('generateBtn').disabled) {
+    // Register a one-time touch/click handler so the next tap triggers re-acquisition
+    // with a valid user gesture — this avoids the "AudioContext not allowed" block.
+    const resumeOnGesture = async () => { await requestWakeLock(); };
+    document.body.addEventListener('touchstart', resumeOnGesture, { once: true, passive: true });
+    document.body.addEventListener('click',      resumeOnGesture, { once: true });
+  }
+});
+
+// [UPGRADE 2] ─── Tab-close / Refresh Protection ──────────────────────────────
+// Only fires while generation is actively running (generateBtn is disabled).
+window.addEventListener('beforeunload', (e) => {
+  if (document.getElementById('generateBtn').disabled) {
+    e.preventDefault();
+    // Most modern browsers show a generic message; returnValue triggers the dialog.
+    e.returnValue = 'Generation is still running. Are you sure you want to leave? Your progress will be lost.';
+  }
+});
+
+// ─── Provider URLs ────────────────────────────────────────────────────────────
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const CB_URL   = 'https://api.cerebras.ai/v1/chat/completions';
+function getCBModel() { return document.getElementById('cbModelSelect').value; }
+
+// ─── State ────────────────────────────────────────────────────────────────────
+const exhaustedKeys  = new Set();
+let   globalRequestSlot = 0;
+
+function markExhausted(key) { exhaustedKeys.add(key); updateKeyStatusPills(); }
+function isExhausted(key)   { return exhaustedKeys.has(key); }
+
+// ─── Key getters ──────────────────────────────────────────────────────────────
+function getGroqKeys() {
+  return [1,2,3,4].map(n => document.getElementById('apiKey'+n).value.trim()).filter(Boolean);
+}
+function getCBKeys() {
+  return [1,2].map(n => document.getElementById('cbKey'+n).value.trim()).filter(Boolean);
+}
+function getActiveKeys() {
+  return [...getGroqKeys(), ...getCBKeys()];
+}
+function getActiveLiveKeys() {
+  return getActiveKeys().filter(k => !isExhausted(k));
+}
+
+// ─── Smart routing ────────────────────────────────────────────────────────────
+// Cerebras backbone + Groq interleaved rotation
+function pickProvider(slot) {
+  const groq = getGroqKeys().filter(k => !isExhausted(k));
+  const cb   = getCBKeys().filter(k   => !isExhausted(k));
+
+  if (cb.length > 0 || groq.length > 0) {
+    // Only Groq — no Cerebras keys
+    if (cb.length === 0) return { key: groq[slot % groq.length], provider: 'groq' };
+    // Only Cerebras — no Groq keys
+    if (groq.length === 0) return { key: cb[slot % cb.length], provider: 'cerebras' };
+    // Both available: interleave CB and Groq
+    // Pattern: CB, G0, CB, G1, CB, CB... repeating — Cerebras every even, Groq every odd
+    const patternLen = 2 * groq.length;
+    const pos = slot % patternLen;
+    if (pos % 2 === 0) return { key: cb[Math.floor(slot / patternLen) % cb.length], provider: 'cerebras' };
+    else return { key: groq[Math.floor(pos / 2) % groq.length], provider: 'groq' };
+  }
+
+  // Final fallback: use whatever live keys exist
+  const any = getActiveLiveKeys();
+  if (!any.length) return null;
+  const key = any[slot % any.length];
+  const provider = key.startsWith('csk-') ? 'cerebras' : 'groq';
+  return { key, provider };
+}
+
+function updateRouteStatus(slot) {
+  const el = document.getElementById('routeStatus');
+  if (!el) return;
+  el.textContent = `📍 Cerebras backbone + Groq rotation (slot ${slot})`;
+}
+
+// ─── Status display ───────────────────────────────────────────────────────────
+function updateKeyStatusPills() {
+  const groqKeys = getGroqKeys();
+  const cbKeys   = getCBKeys();
+  const deadG    = groqKeys.filter(k => isExhausted(k)).length;
+  const deadCB   = cbKeys.filter(k   => isExhausted(k)).length;
+
+  const el = document.getElementById('keyStatus');
+  el.textContent = groqKeys.length
+    ? `✓ ${groqKeys.length} Groq key${groqKeys.length>1?'s':''}${deadG?' ('+deadG+' daily limit)':''}`
+    : '';
+
+  const cbEl = document.getElementById('cbKeyStatus');
+  cbEl.textContent = cbKeys.length
+    ? `✓ ${cbKeys.length} Cerebras key${cbKeys.length>1?'s':''}${deadCB?' ('+deadCB+' exhausted)':''} — 1M tokens/day`
+    : '';
+}
+
+// ─── API Key Test System ──────────────────────────────────────────────────────
+function buildTestRows() {
+  const rows = document.getElementById('testRows');
+  rows.innerHTML = '';
+
+  const tests = [];
+  getGroqKeys().forEach((k,i) => tests.push({ key: k, label: `Groq Key ${i+1}  (${k.slice(0,8)}…)`, provider: 'groq' }));
+  getCBKeys().forEach((k,i)   => tests.push({ key: k, label: `Cerebras Key ${i+1}  (${k.slice(0,8)}…)`, provider: 'cerebras' }));
+
+  if (tests.length === 0) {
+    rows.innerHTML = '<div style="font-size:11px;color:var(--muted);font-style:italic;">No keys entered yet.</div>';
+    return tests;
+  }
+
+  tests.forEach((t, idx) => {
+    const div = document.createElement('div');
+    div.className = 'test-row';
+    div.id = `tr_${idx}`;
+    div.innerHTML = `<span class="test-row-label">${t.label}</span><span class="test-badge pending" id="tb_${idx}">—</span>`;
+    rows.appendChild(div);
+  });
+  return tests;
+}
+
+async function testSingleKey(key, provider) {
+  const url   = provider === 'groq' ? GROQ_URL : CB_URL;
+  const model = provider === 'groq'
+    ? document.getElementById('modelSelect').value
+    : getCBModel();
+
+  const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key };
+
+  const body = JSON.stringify({
+    model,
+    max_tokens: 8,
+    messages: [{ role: 'user', content: 'Reply: OK' }]
+  });
+
+  try {
+    const res = await fetch(url, { method: 'POST', headers, body });
+    if (res.ok) {
+      const data = await res.json();
+      const reply = data.choices?.[0]?.message?.content || '';
+      return { ok: true, note: reply.slice(0, 30) || 'Connected' };
+    } else {
+      const err = await res.json().catch(() => ({}));
+      // Cerebras uses err.message directly, others use err.error.message
+      const msg = err?.error?.message || err?.message || JSON.stringify(err).slice(0, 80) || `HTTP ${res.status}`;
+      if (/tokens per day|TPD|daily.*limit|exceeded.*daily/i.test(msg)) return { ok: false, note: 'Daily limit reached' };
+      if (res.status === 429) return { ok: false, note: 'Rate limited — key is valid, retry in ~1 min' };
+      if (res.status === 401) return { ok: false, note: 'Invalid key' };
+      if (res.status === 404) return { ok: false, note: msg.slice(0, 60) };
+      return { ok: false, note: msg.slice(0, 60) };
+    }
+  } catch(e) {
+    return { ok: false, note: 'Network error' };
+  }
+}
+
+document.getElementById('testAllBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('testAllBtn');
+  const summary = document.getElementById('testSummary');
+  const tests = buildTestRows();
+  if (!tests.length) { summary.textContent = 'Enter at least one API key first.'; return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Testing…';
+  summary.textContent = '';
+
+  let passed = 0, failed = 0;
+
+  for (let i = 0; i < tests.length; i++) {
+    const badge = document.getElementById(`tb_${i}`);
+    badge.className = 'test-badge testing';
+    badge.textContent = 'testing…';
+
+    const result = await testSingleKey(tests[i].key, tests[i].provider);
+
+    badge.className = 'test-badge ' + (result.ok ? 'ok' : 'fail');
+    badge.textContent = result.ok ? `✓ ${result.note}` : `✗ ${result.note}`;
+    if (result.ok) passed++; else failed++;
+  }
+
+  if (failed === 0) {
+    summary.textContent = `✓ All ${passed} key${passed>1?'s':''} working — ready to generate!`;
+    summary.style.color = 'var(--green)';
+  } else if (passed === 0) {
+    summary.textContent = `✗ All ${failed} key${failed>1?'s':''} failed — check keys and try again.`;
+    summary.style.color = 'var(--red)';
+  } else {
+    summary.textContent = `${passed} key${passed>1?'s':''} OK, ${failed} failed — generation will use working keys only.`;
+    summary.style.color = 'var(--accent)';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⚡ Test All Keys';
+});
+
+// Rebuild test rows whenever any key input changes
+[1,2,3,4].forEach(n => document.getElementById('apiKey'+n).addEventListener('input', buildTestRows));
+[1,2].forEach(n => document.getElementById('cbKey'+n).addEventListener('input', buildTestRows));
+
+window.addEventListener('DOMContentLoaded', () => {
+  for (let n = 1; n <= 4; n++) { const s = localStorage.getItem('groq_key_'+n); if (s) document.getElementById('apiKey'+n).value = s; }
+  for (let n = 1; n <= 2; n++) { const s = localStorage.getItem('cb_key_'+n);   if (s) document.getElementById('cbKey'+n).value   = s; }
+  const sm = localStorage.getItem('groq_model');    if (sm)  document.getElementById('modelSelect').value   = sm;
+  // Migrate deprecated/broken Cerebras models
+  // Only list truly removed models here — never list models that appear in the dropdown
+  const DEPRECATED_CB = ['llama3.1-70b', 'gpt-oss-120b', 'llama3.3-70b-instruct'];
+  let sc = localStorage.getItem('cb_model');
+  if (sc && DEPRECATED_CB.includes(sc)) { sc = 'llama3.1-8b'; localStorage.setItem('cb_model', sc); }
+  if (sc) document.getElementById('cbModelSelect').value = sc;
+  updateKeyStatus(); updateKeyStatusPills(); updateRouteStatus(0); buildTestRows();
+
+  // ── Restore persisted token usage stats (survives tab suspension / refresh) ──
+  try {
+    const saved = localStorage.getItem('drg_usage_stats');
+    if (saved) {
+      const loaded = JSON.parse(saved);
+      // Replace the whole object so all nested fields (perKey, callLog) are restored
+      usageStats = Object.assign({}, usageStats, loaded);
+      // Manually drive every UI element — renderUsageFromStats() handles all of them
+      document.getElementById('totalTokensVal').textContent      = fmtNum(usageStats.totalPrompt + usageStats.totalCompletion);
+      document.getElementById('totalCallsVal').textContent       = usageStats.totalCalls;
+      document.getElementById('promptTokensVal').textContent     = fmtNum(usageStats.totalPrompt);
+      document.getElementById('completionTokensVal').textContent = fmtNum(usageStats.totalCompletion);
+      renderUsageFromStats(); // rebuilds usageTableBody + usageCallLog
+    }
+  } catch(e) { /* corrupt data — ignore and start fresh */ }
+});
+
+[1,2,3,4].forEach(n => document.getElementById('apiKey'+n).addEventListener('input', () => { updateKeyStatus(); updateKeyStatusPills(); }));
+[1,2].forEach(n => document.getElementById('cbKey'+n).addEventListener('input', updateKeyStatusPills));
+document.getElementById('lengthSelect').addEventListener('change', updateKeyStatus);
+
+document.getElementById('saveKeyBtn').addEventListener('click', () => {
+  for (let n = 1; n <= 4; n++) { const v = document.getElementById('apiKey'+n).value.trim(); v ? localStorage.setItem('groq_key_'+n,v) : localStorage.removeItem('groq_key_'+n); }
+  localStorage.setItem('groq_model', document.getElementById('modelSelect').value);
+  const s = document.getElementById('keySaved'); s.style.display='block'; setTimeout(()=>s.style.display='none',2500);
+});
+
+document.getElementById('saveCbKeyBtn').addEventListener('click', () => {
+  for (let n = 1; n <= 2; n++) { const v = document.getElementById('cbKey'+n).value.trim(); v ? localStorage.setItem('cb_key_'+n,v) : localStorage.removeItem('cb_key_'+n); }
+  localStorage.setItem('cb_model', document.getElementById('cbModelSelect').value);
+  const s = document.getElementById('cbKeySaved'); s.style.display='block'; setTimeout(()=>s.style.display='none',2500);
+});
+
+document.getElementById('modelSelect').addEventListener('change',   () => localStorage.setItem('groq_model', document.getElementById('modelSelect').value));
+document.getElementById('cbModelSelect').addEventListener('change', () => localStorage.setItem('cb_model',   document.getElementById('cbModelSelect').value));
+
+// ─── Key status / time estimate ───────────────────────────────────────────────
+function updateKeyStatus() {
+  const keys = getActiveKeys();
+  const el   = document.getElementById('keyStatus');
+  if (!keys.length) { el.textContent = ''; return; }
+  const pages      = parseInt(document.getElementById('lengthSelect').value) || 80;
+  const sections   = calcSections(pages);
+  const count      = Math.min(keys.length, 4);
+  // Each section at 4000 tokens takes ~20-25s with 1 key, less with more keys
+  const secPerSec  = [0, 22, 13, 9, 7][count] || 7;
+  const totalSec   = sections * secPerSec;
+  const mins       = Math.ceil(totalSec / 60);
+  const timeStr    = mins >= 60 ? `~${Math.floor(mins/60)}h ${mins%60}m` : `~${mins} min`;
+  el.textContent   = `✓ ${keys.length} key${keys.length>1?'s':''} active — ${sections} sections, est. time: ${timeStr}`;
+}
+
+// ─── Sections calc ────────────────────────────────────────────────────────────
+// Each section at 6000 tokens fills ~5-6 printed pages, so divide by 3
+function calcSections(pages) { return Math.max(5, Math.round(pages / 3)); }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── Token Usage Tracker ──────────────────────────────────────────────────────
+let usageStats = {
+  totalCalls: 0, totalPrompt: 0, totalCompletion: 0,
+  perKey: {},   // key -> { label, provider, calls, prompt, completion, remaining }
+  callLog: []   // [{ providerCls, provider, keyLabel, pt, ct, remaining }]
+};
+
+function fmtNum(n) { return n >= 1000 ? (n/1000).toFixed(1)+'K' : String(n); }
+
+// Persist usageStats to localStorage — wrapped in try/catch so quota errors
+// (and Incognito mode blocks) never crash the app.
+function saveUsageStats() {
+  try { localStorage.setItem('drg_usage_stats', JSON.stringify(usageStats)); } catch(e) { /* quota / incognito — silent */ }
+}
+
+// Re-render the entire Usage UI from the current usageStats object
+// (used both by trackUsage and on DOMContentLoaded when restoring from localStorage)
+function renderUsageFromStats() {
+  // Summary grid
+  document.getElementById('totalTokensVal').textContent      = fmtNum(usageStats.totalPrompt + usageStats.totalCompletion);
+  document.getElementById('totalCallsVal').textContent       = usageStats.totalCalls;
+  document.getElementById('promptTokensVal').textContent     = fmtNum(usageStats.totalPrompt);
+  document.getElementById('completionTokensVal').textContent = fmtNum(usageStats.totalCompletion);
+
+  // Per-key table
+  const tbody = document.getElementById('usageTableBody');
+  tbody.innerHTML = '';
+  let grandTotal = 0;
+  Object.values(usageStats.perKey).forEach(k => {
+    const tot = k.prompt + k.completion;
+    grandTotal += tot;
+    const cls = k.provider === 'groq' ? 'provider-groq' : 'provider-cb';
+    const rem = k.remaining !== null ? fmtNum(k.remaining) : '—';
+    tbody.innerHTML += `<tr>
+      <td class="${cls}">${k.label}</td>
+      <td>${k.calls}</td>
+      <td>${fmtNum(k.prompt)}</td>
+      <td>${fmtNum(k.completion)}</td>
+      <td>${fmtNum(tot)}</td>
+      <td style="color:var(--green)">${rem}</td>
+    </tr>`;
+  });
+  if (usageStats.totalCalls > 0) {
+    tbody.innerHTML += `<tr class="total-row">
+      <td>TOTAL</td><td>${usageStats.totalCalls}</td>
+      <td>${fmtNum(usageStats.totalPrompt)}</td>
+      <td>${fmtNum(usageStats.totalCompletion)}</td>
+      <td>${fmtNum(grandTotal)}</td><td>—</td>
+    </tr>`;
+  }
+
+  // Call log (newest first, already stored that way in callLog array)
+  const log = document.getElementById('usageCallLog');
+  if (!usageStats.callLog.length) {
+    log.innerHTML = '<div style="font-size:11px;color:var(--muted);font-style:italic;">No calls yet.</div>';
+    return;
+  }
+  log.innerHTML = '';
+  usageStats.callLog.forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'call-item';
+    div.innerHTML = `
+      <span class="call-badge ${entry.providerCls}">${entry.provider.toUpperCase()}</span>
+      <span class="call-desc">${entry.keyLabel}</span>
+      <span class="call-tokens">↑${fmtNum(entry.pt)} ↓${fmtNum(entry.ct)}</span>
+      ${entry.remaining !== null ? `<span class="call-remaining">${fmtNum(entry.remaining)} left</span>` : ''}
+    `;
+    log.appendChild(div);
+  });
+}
+
+function trackUsage(key, provider, keyLabel, usage, remainingTokens) {
+  usageStats.totalCalls++;
+  const pt = usage?.prompt_tokens || 0;
+  const ct = usage?.completion_tokens || 0;
+  usageStats.totalPrompt += pt;
+  usageStats.totalCompletion += ct;
+
+  if (!usageStats.perKey[key]) {
+    usageStats.perKey[key] = { label: keyLabel, provider, calls: 0, prompt: 0, completion: 0, remaining: null };
+  }
+  const k = usageStats.perKey[key];
+  k.calls++; k.prompt += pt; k.completion += ct;
+  if (remainingTokens !== null) k.remaining = remainingTokens;
+
+  // Prepend to callLog array (newest first)
+  const provCls = provider === 'groq' ? 'gr' : 'cb';
+  usageStats.callLog.unshift({ providerCls: provCls, provider, keyLabel, pt, ct, remaining: remainingTokens });
+
+  // Render the full UI from updated stats
+  renderUsageFromStats();
+
+  // Persist to localStorage so tab suspensions / refreshes don't lose data
+  saveUsageStats();
+}
+
+document.getElementById('usageResetBtn').addEventListener('click', () => {
+  usageStats.totalCalls = 0; usageStats.totalPrompt = 0; usageStats.totalCompletion = 0;
+  usageStats.perKey = {};
+  usageStats.callLog = [];
+  localStorage.removeItem('drg_usage_stats');
+  document.getElementById('totalTokensVal').textContent = '0';
+  document.getElementById('totalCallsVal').textContent  = '0';
+  document.getElementById('promptTokensVal').textContent = '0';
+  document.getElementById('completionTokensVal').textContent = '0';
+  document.getElementById('usageTableBody').innerHTML = '<tr><td colspan="6" style="color:var(--muted);font-family:sans-serif;font-size:11px;">No calls yet.</td></tr>';
+  document.getElementById('usageCallLog').innerHTML = '<div style="font-size:11px;color:var(--muted);font-style:italic;">No calls yet.</div>';
+});
+
+// ─── Key label helper ─────────────────────────────────────────────────────────
+function getKeyLabel(key, provider) {
+  if (provider === 'groq') {
+    const keys = getGroqKeys();
+    const idx = keys.indexOf(key);
+    return `Groq Key ${idx+1} (${key.slice(0,8)}…)`;
+  } else {
+    const keys = getCBKeys();
+    const idx = keys.indexOf(key);
+    return `Cerebras Key ${idx+1} (${key.slice(0,8)}…)`;
+  }
+}
+
+// ─── Core API Call with 2-provider smart routing ──────────────────────────────
+async function callAPI(messages, maxTokens, retryCount = 0, slotOverride = null, tpdRetries = 0) {
+  const slot  = slotOverride !== null ? slotOverride : globalRequestSlot;
+  const entry = pickProvider(slot);
+
+  if (!entry) throw new Error('All API keys exhausted. Add more keys or try again tomorrow.');
+
+  const { key, provider } = entry;
+  updateRouteStatus(slot);
+
+  const url   = provider === 'groq' ? GROQ_URL : CB_URL;
+  const model = provider === 'groq'
+    ? document.getElementById('modelSelect').value
+    : getCBModel();
+
+  const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key };
+
+  // BUG FIX: Add 60-second timeout via AbortController — previously could hang forever
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), 60000);
+
+  let res;
+  try {
+    res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ model, max_tokens: maxTokens, messages }), signal: controller.signal });
+  } catch(e) {
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') throw new Error(`[${provider}] Request timed out after 60s — check your connection or try again.`);
+    throw new Error(`[${provider}] Network error: ${e.message}`);
+  }
+  clearTimeout(timeoutId);
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = err?.error?.message || err?.message || `API error ${res.status}`;
+
+    // TPD — mark exhausted, retry next slot with remaining providers
+    if (/tokens per day|TPD|daily.*limit|exceeded.*daily/i.test(msg)) {
+      markExhausted(key);
+      if (!getActiveLiveKeys().length) throw new Error('All keys hit daily limit. Try again tomorrow or add more keys.');
+      if (tpdRetries >= 8) throw new Error('Too many daily-limit hits in a row. Add more keys.');
+      setProgress(document.getElementById('progressBar').style.width.replace('%','') || 0, `⚠ ${provider} daily limit hit — switching…`);
+      await sleep(600);
+      return callAPI(messages, maxTokens, retryCount, slot + 1, tpdRetries + 1); // BUG FIX: use slot+1, not same slot
+    }
+
+    // TPM — wait and retry next slot
+    if (res.status === 429 && retryCount < 8) {
+      const waitSec = parseFloat((msg.match(/try again in ([\d.]+)s/i)||[])[1] || 20);
+      const waitMs  = Math.ceil(waitSec * 1000) + 2000;
+      const statusEl = document.getElementById('statusText');
+      let rem = Math.ceil(waitMs / 1000);
+      const t = setInterval(() => { statusEl.textContent = `⏳ Rate limit on ${provider} — resuming in ${rem--}s…`; if (rem<=0) clearInterval(t); }, 1000);
+      await sleep(waitMs); clearInterval(t);
+      return callAPI(messages, maxTokens, retryCount + 1, slot + 1);
+    }
+
+    throw new Error(`[${provider}] ${msg}`);
+  }
+
+  globalRequestSlot++;
+  const data = await res.json();
+
+  // ── BUG FIX: Check finish_reason — 'length' means model was cut off by token limit ──
+  const finishReason = data.choices?.[0]?.finish_reason;
+  if (finishReason === 'length' && maxTokens < 8000 && retryCount < 2) {
+    // Section was truncated — retry with higher token budget (up to 6000)
+    const higherLimit = Math.min(maxTokens + 2000, 6000);
+    console.warn(`[callAPI] finish_reason=length — retrying with ${higherLimit} tokens`);
+    setProgress(document.getElementById('progressBar').style.width.replace('%','') || 0,
+      `⚠ Section truncated — retrying with larger token limit…`);
+    return callAPI(messages, higherLimit, retryCount + 1, slotOverride, tpdRetries);
+  }
+
+  // ── Track token usage ─────────────────────────────────────────────────────
+  if (data.usage) {
+    // Groq rate-limit headers: remaining tokens this minute/day
+    const remTokens = res.headers.get('x-ratelimit-remaining-tokens')
+      || res.headers.get('x-ratelimit-remaining-tokens-day')
+      || null;
+    const remaining = remTokens !== null ? parseInt(remTokens) : null;
+    const keyLabel = getKeyLabel(key, provider);
+    trackUsage(key, provider, keyLabel, data.usage, remaining);
+  }
+
+  return data.choices?.[0]?.message?.content || '';
+}
+
+// ─── Generate outline ─────────────────────────────────────────────────────────
+async function generateOutline(topic, pages, style, extra) {
+  const n = calcSections(pages);
+
+  // ── Helper: always pick a Groq key for the outline (Cerebras 8B truncates large JSON) ──
+  function pickGroqSlot() {
+    const groq = getGroqKeys().filter(k => !isExhausted(k));
+    const cb   = getCBKeys().filter(k => !isExhausted(k));
+    // If Groq available, find a slot that resolves to Groq
+    if (groq.length > 0) {
+      // In interleaved pattern, odd slots are Groq when both providers present
+      return (cb.length > 0) ? 1 : 0;
+    }
+    return null; // no Groq — use default routing (Cerebras will do its best)
+  }
+
+  // ── Prompt 1: JSON format (preferred) ────────────────────────────────────
+  const jsonPrompt = `You are a research writer. Create an outline for a research document about: "${topic}".
+${extra ? 'Additional instructions: ' + extra : ''}
+Writing style: ${style}.
+
+Generate exactly ${n} sections. Keep each description to ONE short sentence (max 12 words).
+
+CRITICAL: Respond ONLY with a valid JSON array. No markdown, no explanation, no extra text before or after:
+[
+  {"title": "Section Title Here", "description": "One short sentence."},
+  {"title": "Next Section Title", "description": "One short sentence."}
+]`;
+
+  // ── Prompt 2: Line format fallback (used on retry — harder to truncate badly) ──
+  const linePrompt = `You are a research writer. Create an outline for a research document about: "${topic}".
+${extra ? 'Additional instructions: ' + extra : ''}
+Writing style: ${style}.
+
+List exactly ${n} sections. Each on its own line in this exact format:
+TITLE: Section Title Here | DESC: One short sentence description.
+
+Example:
+TITLE: Introduction | DESC: Overview of the topic and key themes.
+TITLE: Historical Background | DESC: Early history and origins explained.
+
+Output ONLY the ${n} lines. No numbering, no extra text:`;
+
+  // ── Robust JSON repair pipeline ──────────────────────────────────────────
+  function repairOutlineJSON(raw) {
+    let s = raw.replace(/```json|```/g, '').trim();
+
+    // Extract array bounds
+    const start = s.indexOf('[');
+    const end   = s.lastIndexOf(']');
+    if (start !== -1 && end !== -1 && end > start) {
+      s = s.slice(start, end + 1);
+    } else if (start !== -1) {
+      s = s.slice(start);
+    }
+
+    // Fix smart/curly quotes
+    s = s.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+
+    // Fix unquoted property names
+    s = s.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)(\s*:)/g, '$1"$2"$3');
+
+    // Remove trailing commas
+    s = s.replace(/,(\s*[}\]])/g, '$1');
+
+    // Salvage complete objects if array is not closed
+    if (!s.endsWith(']')) {
+      // Find last fully-closed object (ends with '}' followed by ',' or whitespace)
+      // Strategy: walk backwards finding complete {"title":...,"description":...} objects
+      const objRegex = /\{[^{}]*"title"\s*:\s*"[^"]*"[^{}]*"description"\s*:\s*"[^"]*"[^{}]*\}/g;
+      const matches  = [...s.matchAll(objRegex)];
+      if (matches.length > 0) {
+        return '[' + matches.map(m => m[0]).join(',') + ']';
+      }
+      // Last resort: cut at last },
+      const lastComma = s.lastIndexOf('},');
+      if (lastComma !== -1) s = s.slice(0, lastComma + 1) + ']';
+      else {
+        const lastBrace = s.lastIndexOf('}');
+        if (lastBrace !== -1) s = s.slice(0, lastBrace + 1) + ']';
+      }
+    }
+    return s;
+  }
+
+  // ── Line-format parser (fallback) ─────────────────────────────────────────
+  function parseLineFormat(raw) {
+    const lines = raw.split('\n').filter(l => l.trim());
+    const results = [];
+    for (const line of lines) {
+      const titleMatch = line.match(/TITLE:\s*(.+?)\s*\|\s*DESC:\s*(.+)/i);
+      if (titleMatch) {
+        results.push({ title: titleMatch[1].trim(), description: titleMatch[2].trim() });
+      }
+    }
+    return results.length >= 3 ? results : null;
+  }
+
+  // ── Attempt 1: JSON prompt ────────────────────────────────────────────────
+  const slot = pickGroqSlot();
+  setProgress(2, 'Building outline…');
+  const res1 = await callAPI([{ role: 'user', content: jsonPrompt }], 8000, 0, slot);
+
+  // Try direct parse
+  try { return JSON.parse(res1.replace(/```json|```/g, '').trim()); } catch(_) {}
+
+  // Try repair pipeline
+  try {
+    const repaired = repairOutlineJSON(res1);
+    const parsed   = JSON.parse(repaired);
+    if (parsed.length >= 3) return parsed;
+  } catch(_) {}
+
+  // ── Attempt 2: retry with line format ────────────────────────────────────
+  setProgress(3, 'Outline parse failed — retrying with alternate format…');
+  await sleep(1500);
+  const res2 = await callAPI([{ role: 'user', content: linePrompt }], 6000, 0, slot);
+
+  // Try line parser
+  const lineResult = parseLineFormat(res2);
+  if (lineResult) return lineResult;
+
+  // Try JSON parse on retry response too (model might ignore instructions and return JSON anyway)
+  try { return JSON.parse(res2.replace(/```json|```/g, '').trim()); } catch(_) {}
+  try {
+    const repaired2 = repairOutlineJSON(res2);
+    const parsed2   = JSON.parse(repaired2);
+    if (parsed2.length >= 3) return parsed2;
+  } catch(_) {}
+
+  // ── Attempt 3: absolute fallback — generate minimal outline locally ───────
+  setProgress(4, 'Outline retry failed — using simplified outline…');
+  // Build a basic structural outline that works for any topic
+  const fallbackSections = [
+    { title: 'Introduction',          description: 'Overview of the topic and key themes.' },
+    { title: 'Historical Background', description: 'Origins and early development of the subject.' },
+    { title: 'Core Concepts',         description: 'Fundamental principles and definitions explained.' },
+    { title: 'Key Findings',          description: 'Major discoveries and research results.' },
+    { title: 'Analysis',              description: 'In-depth examination of evidence and implications.' },
+    { title: 'Applications',          description: 'Practical uses and real-world significance.' },
+    { title: 'Challenges',            description: 'Obstacles, controversies, and open questions.' },
+    { title: 'Future Directions',     description: 'Emerging trends and areas for further research.' },
+    { title: 'Conclusion',            description: 'Summary of findings and final reflections.' },
+  ].slice(0, Math.max(5, n));
+
+  return fallbackSections;
+}
+
+// ─── Generate one section ─────────────────────────────────────────────────────
+// [UPGRADE 1] Added `previousSnippet` parameter for context chaining (rolling memory)
+async function generateSection(topic, section, sectionIndex, totalSections, style, previousTitles, previousSnippet = '') {
+  // BUG FIX: cap to last 5 titles — previously grew unboundedly, wasting tokens on large docs
+  const recentTitles = previousTitles.slice(-5);
+  const prevContext = recentTitles.length > 0
+    ? `Recently covered sections: ${recentTitles.join(', ')}.`
+    : '';
+
+  // [UPGRADE 1] Rolling memory — seamless transition from last section
+  const transitionContext = previousSnippet
+    ? `\n\nTo ensure a seamless transition, here are the final lines of the previous section:\n"${previousSnippet}"\nContinue naturally from here without repeating concepts already covered.`
+    : '';
+
+  const isAudiobook = style === 'audiobook';
+
+  const styleInstruction = {
+    academic:    'Academic tone with formal language, citations-style references, and scholarly depth',
+    professional:'Clear, well-structured professional writing with authoritative tone',
+    detailed:    'Technical depth with detailed explanations, examples, and precise terminology',
+    accessible:  'Conversational, friendly and clear — accessible to a general audience',
+    audiobook:   "Audiobook narration style: warm, engaging spoken-word prose written to be heard, not read. Use natural sentence rhythms, rhetorical questions, vivid imagery, short dramatic beats, and a storyteller's pacing. Write as if a narrator is speaking directly to a listener. Avoid bullet points, avoid heading-heavy structure — instead use flowing paragraph transitions like 'Now, here's where it gets interesting…' or 'Think about it this way…' or 'And that brings us to…'. Every paragraph should feel like it leads naturally into the next.",
+  }[style] || 'Clear, well-structured professional writing';
+
+  const prompt = isAudiobook
+    ? `You are an audiobook narrator writing chapter ${sectionIndex + 1} of ${totalSections} of a spoken-word audiobook about: "${topic}".
+
+Chapter title: ${section.title}
+Chapter focus: ${section.description}
+${prevContext}${transitionContext}
+
+Write this chapter as pure audiobook narration — flowing, spoken prose meant to be listened to. Requirements:
+- Minimum 1000 words of warm, engaging narration
+- ${styleInstruction}
+- Open with a hook — a vivid scene, a striking fact, or a direct question to the listener
+- NO markdown headings (## or ###) — use natural spoken transitions instead: "Let's turn now to…", "Which brings us to a fascinating point…", "Here's something worth sitting with for a moment…"
+- You MAY use **bold** sparingly for emphasis on a key word or phrase (1–2 per page max)
+- Write in paragraphs only — no bullet lists, no numbered lists
+- Use rhetorical devices: analogies, hypotheticals ("Imagine you're standing in…"), direct address ("You might be wondering…")
+- Vary sentence length — mix short punchy sentences with longer flowing ones for rhythm
+- CRITICAL: Never end mid-sentence — complete every thought fully
+- End the chapter with a brief forward-looking line that hints at what's coming next, like a chapter-ending hook`
+    : `You are writing section ${sectionIndex + 1} of ${totalSections} of a ${style} research document about: "${topic}".
+
+Section title: ${section.title}
+Section focus: ${section.description}
+${prevContext}${transitionContext}
+
+Write this section in full. Requirements:
+- Minimum 1500 words of dense, substantive prose
+- ${styleInstruction}
+- Start directly with the content — NO meta-commentary like "In this section…"
+- Use markdown: ## for subsection headings, **bold** for key terms only within sentences, bullet lists where appropriate
+- CRITICAL: Write ONLY in full prose paragraphs. NEVER generate keyword lists, tag clouds, index entries, or lines that are just a bold word with nothing else. Every **bold** phrase must appear inside a full sentence.
+- CRITICAL: Every subsection heading (##) MUST be immediately followed by at least 2 full paragraphs of written prose — never a heading followed by a list of bold keywords
+- CRITICAL: Never end mid-sentence or mid-paragraph — always complete your final thought fully before stopping
+- CRITICAL: If you are approaching your output limit, write a proper closing sentence for the current paragraph — do not stop abruptly
+- End naturally — do not write concluding remarks for the whole document
+- Be thorough, specific, and informative — this must fill at least 3 printed pages`;
+
+  const result = await callAPI([{ role: 'user', content: prompt }], 6000, 0, sectionIndex);
+
+  // ── Quality check: detect keyword-only or too-short output ─────────────────
+  const wordCount = result.trim().split(/\s+/).length;
+  // Check if output is suspiciously keyword-like: many lines with only bold text
+  const boldOnlyLines = (result.match(/^\s*\*\*[^*\n]+\*\*\s*$/gm) || []).length;
+  const totalLines    = result.trim().split('\n').filter(l => l.trim()).length;
+  const isBadOutput   = wordCount < 300 || (totalLines > 3 && boldOnlyLines / totalLines > 0.5);
+
+  if (isBadOutput && !stopRequested) {  // BUG FIX: don't retry if user requested stop
+    // Retry with a stronger directive
+    const retryPrompt = `You are writing section ${sectionIndex + 1} of ${totalSections} of a ${style} research document about: "${topic}".
+
+Section title: ${section.title}
+Section focus: ${section.description}
+
+IMPORTANT: Your previous response was rejected because it contained keyword lists or was too short.
+Write this section as flowing prose ONLY — no keyword lists, no tag lines, no metadata.
+Every line must be part of a full sentence inside a paragraph.
+Minimum 1000 words of actual prose. Use ## for subheadings, but each subheading must be followed by at least 2 full paragraphs.`;
+    return await callAPI([{ role: 'user', content: retryPrompt }], 4000, 0, null);
+  }
+
+  return result;
+}
+
+// ─── Markdown → HTML ──────────────────────────────────────────────────────────
+function mdToHtml(md) {
+  // Pass 1: Remove lines that are ONLY a **bold keyword** (no surrounding sentence)
+  // e.g. **phosphorus content** or **role of phosphorus** on their own line
+  md = md.replace(/^\s*\*\*([^*\n]{1,80})\*\*\s*$/gm, '');
+
+  // Pass 2: Remove only clear AI hallucination metadata lines —
+  // lines that start with known metadata prefixes (Keywords:, Tags:, etc.)
+  // OR lines that are entirely bold text **...**  (a fallback for any that slipped past Pass 1).
+  // Normal short sentences, list items, and stylistically brief prose are NOT touched.
+  const lines = md.split('\n');
+  const isKeywordLine = l => {
+    const t = l.trim();
+    if (!t) return false;
+    // 1. Known metadata prefix patterns — AI tends to hallucinate these as section footers
+    if (/^(Keywords?|Tags?|Topics?|Categories?|Index\s*Terms?|Subject\s*Areas?|See\s*Also|Related\s*Terms?)\s*:/i.test(t)) return true;
+    // 2. Entire line is bold with no surrounding prose (e.g. **Phosphorus Cycle** alone on a line)
+    //    Note: Pass 1 already removed most of these; this catches any with odd spacing.
+    if (/^\*\*[^*\n]+\*\*$/.test(t)) return true;
+    return false;
+  };
+  // Mark runs of 3+ consecutive keyword-like lines for removal
+  let cleaned = [];
+  let i = 0;
+  while (i < lines.length) {
+    // Look ahead: how many consecutive keyword lines from here?
+    let run = 0;
+    while (i + run < lines.length && isKeywordLine(lines[i + run])) run++;
+    if (run >= 3) {
+      i += run; // drop the whole run
+    } else {
+      cleaned.push(lines[i]);
+      i++;
+    }
+  }
+  md = cleaned.join('\n');
+
+  // Collapse 3+ newlines into 2
+  md = md.replace(/\n{3,}/g, '\n\n');
+
+  return md
+    .replace(/^## (.+)$/gm,  '<h3>$1</h3>')
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,    '<em>$1</em>')
+    .replace(/^- (.+)$/gm,   '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
+    .split('\n\n').map(p => {
+      p = p.trim();
+      if (!p) return '';
+      if (p.startsWith('<h') || p.startsWith('<ul')) return p;
+      return `<p>${p.replace(/\n/g,'<br/>')}</p>`;
+    }).join('\n');
+}
+
+// ─── HTML escape helper ───────────────────────────────────────────────────────
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Build full HTML doc ──────────────────────────────────────────────────────
+function buildDocHTML(topic, sections, contents, style) {
+  const now  = new Date();
+  const date = now.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  const safeTitle = escHtml(topic);
+
+  const body = sections.map((sec, i) => `
+    <div class="chapter">
+      <h2>${escHtml(sec.title)}</h2>
+      ${mdToHtml(contents[i])}
+    </div>
+    ${i < sections.length-1 ? '<div class="page-break"></div>' : ''}
+  `).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>${safeTitle}</title>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.7; color: #111; }
+body { padding: 1in; max-width: 8.5in; margin: 0 auto; }
+.title-page { text-align: center; padding: 2in 0 1.5in; border-bottom: 2pt solid #333; margin-bottom: 0.5in; }
+.title-page h1 { font-size: 24pt; font-weight: bold; line-height: 1.2; margin-bottom: 16pt; }
+.title-page .meta { font-size: 11pt; color: #555; }
+.title-page .style-tag { display: inline-block; margin-top: 12pt; font-size: 9pt; letter-spacing: 2px; text-transform: uppercase; color: #888; border: 1pt solid #ccc; padding: 3pt 10pt; border-radius: 2pt; }
+.toc { margin-bottom: 0.5in; page-break-after: always; }
+.toc h2 { font-size:16pt; margin-bottom: 16pt; border-bottom: 1pt solid #ddd; padding-bottom: 6pt; }
+.toc-item { display:flex; justify-content:space-between; padding: 4pt 0; border-bottom: 1pt dotted #ddd; font-size: 11pt; }
+.toc-num { color: #888; font-size: 10pt; min-width: 24pt; }
+.chapter { margin-bottom: 0.3in; }
+.chapter h2 { font-size: 18pt; font-weight: bold; margin-bottom: 14pt; padding-bottom: 8pt; border-bottom: 2pt solid #333; page-break-after: avoid; }
+h3 { font-size: 14pt; font-weight: bold; margin: 16pt 0 8pt; page-break-after: avoid; }
+h4 { font-size: 12pt; font-weight: bold; font-style: italic; margin: 12pt 0 6pt; page-break-after: avoid; }
+p { margin-bottom: 10pt; text-align: justify; }
+ul { margin: 8pt 0 10pt 22pt; }
+li { margin-bottom: 4pt; }
+strong { font-weight: bold; }
+em { font-style: italic; }
+.page-break { page-break-before: always; height: 0; }
+@page { size: letter portrait; margin: 1in; }
+@media print { body { padding: 0; } .title-page { padding: 1in 0; } }
+</style>
+</head>
+<body>
+<div class="title-page">
+  <h1>${safeTitle}</h1>
+  <div class="meta">Generated ${date}</div>
+  <div class="style-tag">${style === 'audiobook' ? '🎧 Audiobook Edition' : escHtml(style) + ' Research Document'}</div>
+</div>
+<div class="toc">
+  <h2>Table of Contents</h2>
+  ${sections.map((s,i) => `
+  <div class="toc-item">
+    <span><span class="toc-num">${i+1}.</span> ${escHtml(s.title)}</span>
+  </div>`).join('')}
+</div>
+${body}
+</body>
+</html>`;
+}
+
+// ─── UI helpers ───────────────────────────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('errorBox');
+  el.style.display = 'block';
+  el.textContent = '⚠ ' + msg;
+}
+function hideError() { document.getElementById('errorBox').style.display = 'none'; }
+
+function setProgress(pct, text) {
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('statusText').textContent = text;
+}
+
+function addSectionItem(id, title) {
+  const list = document.getElementById('sectionList');
+  const el = document.createElement('div');
+  el.className = 'section-item active';
+  el.id = 'si_' + id;
+  el.innerHTML = `<div class="dot spin"></div><span>${title}</span>`;
+  list.appendChild(el);
+  el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function completeSectionItem(id, ok) {
+  const el = document.getElementById('si_' + id);
+  if (!el) return;
+  el.className = 'section-item ' + (ok ? 'done' : 'error');
+  el.querySelector('.dot').className = 'dot';
+  // [UPGRADE 4] Add ↻ Retry button when a section finishes successfully
+  if (ok) {
+    // Remove any existing retry btn first (re-entrant call after retry)
+    const existing = el.querySelector('.retry-btn');
+    if (existing) existing.remove();
+    const retryBtn = document.createElement('button');
+    retryBtn.className = 'retry-btn';
+    retryBtn.textContent = '↻ Retry';
+    retryBtn.title = 'Regenerate this section';
+    retryBtn.addEventListener('click', () => retrySection(id));
+    el.appendChild(retryBtn);
+  }
+}
+
+function setSectionItemStatus(id, status, label) {
+  const el = document.getElementById('si_' + id);
+  if (!el) return;
+  el.className = 'section-item ' + status;
+  const dot = el.querySelector('.dot');
+  dot.className = status === 'active' ? 'dot spin' : 'dot';
+  if (label) el.querySelector('span').textContent = label;
+}
+
+// [UPGRADE 4] ─── Inline Retry: regenerate one section without scrapping the doc ───
+async function retrySection(idx) {
+  if (!currentSections || !currentContents) return;
+
+  const sec    = currentSections[idx];
+  const el     = document.getElementById('si_' + idx);
+  const retBtn = el ? el.querySelector('.retry-btn') : null;
+
+  if (retBtn) { retBtn.disabled = true; retBtn.textContent = '…'; }
+  setSectionItemStatus(idx, 'active', `↻ Retrying: ${sec.title}…`);
+
+  // Rebuild context for this index
+  const prevTitles     = currentSections.slice(0, idx).map(s => s.title);
+  let   previousSnippet = '';
+  if (idx > 0 && currentContents[idx - 1]) {
+    const words = currentContents[idx - 1].trim().split(/\s+/);
+    previousSnippet = words.slice(-175).join(' ');
+  }
+
+  try {
+    const text = await generateSection(
+      currentTopic, sec, idx, currentSections.length,
+      currentStyle, prevTitles, previousSnippet
+    );
+    currentContents[idx] = text;
+    completeSectionItem(idx, true);   // re-attaches the retry btn
+
+    // Rebuild & update doc
+    generatedHTML = buildDocHTML(currentTopic, currentSections, currentContents, currentStyle);
+    const pages = parseInt(document.getElementById('lengthSelect').value);
+    if (document.getElementById('previewCard').style.display !== 'none' && pages < 60) {
+      document.getElementById('previewFrame').srcdoc = generatedHTML;
+    }
+  } catch(e) {
+    completeSectionItem(idx, false);
+    // Restore retry btn on failure so user can try again
+    const elAfter = document.getElementById('si_' + idx);
+    if (elAfter) {
+      const rb = document.createElement('button');
+      rb.className = 'retry-btn';
+      rb.textContent = '↻ Retry';
+      rb.title = 'Regenerate this section';
+      rb.addEventListener('click', () => retrySection(idx));
+      elAfter.appendChild(rb);
+    }
+    console.error('retrySection failed:', e.message);
+  }
+}
+
+// ─── Main generate flow ───────────────────────────────────────────────────────
+let generatedHTML = '';
+let stopRequested = false;
+
+// [UPGRADE 4] Module-level state so retrySection() can access post-generation
+let currentSections = null;   // sections array, kept alive after generation
+let currentContents = null;   // contents array, mutated by retrySection
+let currentTopic    = '';
+let currentStyle    = '';
+
+// Interruptible sleep — checks stopRequested every 500ms
+function sleepInterruptible(ms) {
+  return new Promise(resolve => {
+    const end = Date.now() + ms;
+    const tick = () => {
+      if (stopRequested || Date.now() >= end) { resolve(); return; }
+      setTimeout(tick, Math.min(500, end - Date.now()));
+    };
+    tick();
+  });
+}
+
+document.getElementById('stopBtn').addEventListener('click', () => {
+  stopRequested = true;
+  document.getElementById('stopBtn').disabled = true;
+  document.getElementById('stopBtn').textContent = 'Stopping…';
+  setProgress(document.getElementById('progressBar').style.width.replace('%','') || 0,
+    '⏹ Stop requested — finishing current section…');
+});
+
+document.getElementById('generateBtn').addEventListener('click', async () => {
+  const topic = document.getElementById('topicInput').value.trim();
+  const pages = parseInt(document.getElementById('lengthSelect').value);
+  const style = document.getElementById('styleSelect').value;
+  const extra = document.getElementById('extraInput').value.trim();
+
+  if (!topic) { showError('Please enter a research topic.'); return; }
+
+  const apiKeys = getActiveKeys();
+  if (apiKeys.length === 0) { showError('Please enter at least one Groq or OpenRouter API key.'); return; }
+
+  hideError();
+  generatedHTML = '';
+  stopRequested = false;
+  globalRequestSlot = 0;
+  exhaustedKeys.clear();          // BUG FIX: clear stale exhausted-key marks from previous run
+  updateRouteStatus(0);
+  updateKeyStatusPills();
+
+  const btn      = document.getElementById('generateBtn');
+  const stopBtn  = document.getElementById('stopBtn');
+  btn.disabled   = true;
+  btn.textContent = 'Generating…';
+  stopBtn.style.display   = 'inline-block';
+  stopBtn.disabled        = false;
+  stopBtn.textContent     = '⏹ Stop';
+  await requestWakeLock();
+
+  const progressCard = document.getElementById('progressCard');
+  const downloadBtns = document.getElementById('downloadBtns');
+  const previewCard  = document.getElementById('previewCard');
+
+  progressCard.style.display = 'block';
+  downloadBtns.style.display = 'none';
+  previewCard.style.display  = 'none';
+  document.getElementById('sectionList').innerHTML = '';
+
+  // Show screen-on warning
+  let warnEl = document.getElementById('screenWarn');
+  if (!warnEl) {
+    warnEl = document.createElement('div');
+    warnEl.id = 'screenWarn';
+    warnEl.style.cssText = 'background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.35);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#e8c97a;display:flex;gap:8px;align-items:flex-start;';
+    warnEl.innerHTML = '<span style="font-size:16px;flex-shrink:0;">📱</span><span><strong>Keep your screen on</strong> during generation. If your screen turns off, the generator will pause and auto-retry when it resumes — but it is best to keep the screen active.</span>';
+    progressCard.insertBefore(warnEl, progressCard.firstChild);
+  }
+  warnEl.style.display = 'flex';
+
+  setProgress(2, 'Building outline…');
+
+  try {
+    let sections;
+    try {
+      sections = await generateOutline(topic, pages, style, extra);
+    } catch(e) {
+      throw new Error('Outline generation failed: ' + e.message);
+    }
+    setProgress(8, `Outline ready — ${sections.length} sections to write`);
+
+    const contents    = [];
+    const prevTitles  = [];
+    let   stopped     = false;
+    let   previousSnippet = '';  // [UPGRADE 1] rolling last-~175-word window
+
+    for (let i = 0; i < sections.length; i++) {
+      if (stopRequested) { stopped = true; break; }
+
+      const sec = sections[i];
+      addSectionItem(i, `${i+1}. ${sec.title}`);
+      setProgress(8 + Math.round((i / sections.length) * 85), `Writing: ${sec.title}…`);
+
+      try {
+        // [UPGRADE 1] Pass previousSnippet for context chaining
+        const text = await generateSection(topic, sec, i, sections.length, style, prevTitles, previousSnippet);
+        contents.push(text);
+        prevTitles.push(sec.title);
+        // Capture last ~175 words for next section's transition prompt
+        const words = text.trim().split(/\s+/);
+        previousSnippet = words.slice(-175).join(' ');
+        completeSectionItem(i, true);
+      } catch(e) {
+        // Retry once — screen-off may have killed the in-flight request
+        try {
+          setSectionItemStatus(i, 'active', `↻ Retrying: ${sec.title}…`);
+          await sleep(3000);
+          const text = await generateSection(topic, sec, i, sections.length, style, prevTitles, previousSnippet);
+          contents.push(text);
+          prevTitles.push(sec.title);
+          const words = text.trim().split(/\s+/);
+          previousSnippet = words.slice(-175).join(' ');
+          completeSectionItem(i, true);
+        } catch(e2) {
+          contents.push(`*Section "${sec.title}" could not be generated after retry: ${e2.message}*`);
+          previousSnippet = ''; // reset snippet on failure, no bad context
+          completeSectionItem(i, false);
+        }
+      }
+
+      if (i < sections.length - 1) {
+        const keyCount = getActiveLiveKeys().length;
+        const pauseMs  = keyCount >= 4 ? 3000 : keyCount === 3 ? 4500 : keyCount === 2 ? 6000 : 12000;
+        await sleepInterruptible(pauseMs);
+      }
+    }
+
+    // Assemble whatever was completed (full run or early stop)
+    const completedSections  = sections.slice(0, contents.length);
+    const completedContents  = contents;
+
+    if (completedContents.length === 0) {
+      setProgress(0, 'Stopped before any sections were written.');
+      btn.textContent = 'Generate Research Document';
+    } else {
+      setProgress(stopped ? 95 : 96, 'Assembling document…');
+      generatedHTML = buildDocHTML(topic, completedSections, completedContents, style);
+
+      // [UPGRADE 4] Persist state for retrySection()
+      currentSections = completedSections;
+      currentContents = completedContents;
+      currentTopic    = topic;
+      currentStyle    = style;
+
+      // [UPGRADE 3] OOM guard — skip iframe render for large docs (≥ 60 pages)
+      const frame = document.getElementById('previewFrame');
+      previewCard.style.display = 'block';
+      if (pages >= 60) {
+        frame.style.display = 'none';
+        let oomMsg = document.getElementById('oomMsg');
+        if (!oomMsg) {
+          oomMsg = document.createElement('div');
+          oomMsg.id = 'oomMsg';
+          oomMsg.style.cssText = 'font-size:13px;color:var(--muted);font-style:italic;padding:16px 0 8px;text-align:center;line-height:1.6;';
+          frame.parentNode.insertBefore(oomMsg, frame);
+        }
+        oomMsg.textContent = '📵 Preview disabled for large documents to save mobile memory. Please use the download buttons below.';
+        oomMsg.style.display = 'block';
+      } else {
+        frame.style.display = '';
+        const oomMsg = document.getElementById('oomMsg');
+        if (oomMsg) oomMsg.style.display = 'none';
+        frame.srcdoc = generatedHTML;
+      }
+
+      downloadBtns.style.display = 'flex';
+
+      if (stopped) {
+        setProgress(95, `⏹ Stopped — ${completedContents.length} of ${sections.length} sections saved.`);
+        btn.textContent = 'Generate Again';
+      } else {
+        setProgress(100, `Done! ${sections.length} sections written.`);
+        btn.textContent = 'Generate Again';
+      }
+    }
+
+    await releaseWakeLock();
+
+  } catch(e) {
+    showError(e.message);
+    setProgress(0, 'Failed.');
+    btn.textContent = 'Generate Research Document';
+    await releaseWakeLock();
+  }
+
+  btn.disabled = false;
+  stopBtn.style.display = 'none';
+  stopRequested = false;
+});
+
+// ─── Download helpers ─────────────────────────────────────────────────────────
+function blobDownload(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+function safeFilename(topic) {
+  return topic.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '').slice(0, 60) || 'research';
+}
+
+// ─── HTML Download ────────────────────────────────────────────────────────────
+document.getElementById('downloadHtmlBtn').addEventListener('click', () => {
+  if (!generatedHTML) return;
+  const topic = document.getElementById('topicInput').value.trim();
+  blobDownload(generatedHTML, safeFilename(topic) + '.html', 'text/html');
+});
+
+// ─── TXT Download ─────────────────────────────────────────────────────────────
+document.getElementById('downloadTxtBtn').addEventListener('click', () => {
+  if (!generatedHTML) return;
+  const topic = document.getElementById('topicInput').value.trim();
+
+  // Parse the stored HTML and extract readable text
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(generatedHTML, 'text/html');
+  const lines  = [];
+
+  // Title
+  const h1 = doc.querySelector('.title-page h1');
+  if (h1) { lines.push(h1.textContent.toUpperCase(), '='.repeat(70), ''); }
+
+  // Date / style
+  const meta = doc.querySelector('.title-page .meta');
+  const stag = doc.querySelector('.title-page .style-tag');
+  if (meta) lines.push(meta.textContent);
+  if (stag) lines.push(stag.textContent, '');
+
+  // TOC
+  lines.push('TABLE OF CONTENTS', '-'.repeat(40));
+  doc.querySelectorAll('.toc-item').forEach(item => lines.push(item.textContent.trim()));
+  lines.push('', '');
+
+  // Chapters
+  doc.querySelectorAll('.chapter').forEach(ch => {
+    const title = ch.querySelector('h2');
+    if (title) { lines.push(title.textContent.toUpperCase(), '='.repeat(70), ''); }
+
+    ch.querySelectorAll('h3,h4,p,li').forEach(el => {
+      if (el.tagName === 'H3') { lines.push('\n' + el.textContent, '-'.repeat(40)); }
+      else if (el.tagName === 'H4') { lines.push('\n' + el.textContent); }
+      else if (el.tagName === 'LI') { lines.push('  • ' + el.textContent); }
+      else { lines.push(el.textContent, ''); }
+    });
+    lines.push('\n');
+  });
+
+  blobDownload(lines.join('\n'), safeFilename(topic) + '.txt', 'text/plain;charset=utf-8');
+});
+
+// ─── Word (.doc) Download — native MS Word MIME-type hack (no external library) ─────
+document.getElementById('downloadDocxBtn').addEventListener('click', () => {
+  if (!generatedHTML) return;
+  const btn = document.getElementById('downloadDocxBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Building Word Doc…';
+
+  try {
+    const topic = document.getElementById('topicInput').value.trim() || 'Research Document';
+
+    // Inject MS Office namespaces into the HTML tag so Word reads it natively
+    const wordHtml = generatedHTML.replace(
+      '<html lang="en">',
+      '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    );
+
+    // Create a Blob with the proper MS Word MIME type. The \ufeff BOM ensures proper UTF-8 encoding.
+    const blob = new Blob(['\ufeff', wordHtml], {
+      type: 'application/msword'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = safeFilename(topic) + '.doc';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+  } catch(e) {
+    alert('Word export failed: ' + e.message);
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '⬇ Save as Word (.doc)';
+});
+
+document.getElementById('downloadPdfBtn').addEventListener('click', async () => {
+  if (!generatedHTML) return;
+  const btn = document.getElementById('downloadPdfBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="pdf-spinner"></span>Building PDF…';
+
+  await new Promise(r => setTimeout(r, 60)); // let UI update
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'letter', compress: true });
+
+    const PW = doc.internal.pageSize.getWidth();
+    const PH = doc.internal.pageSize.getHeight();
+    const ML = 72, MR = 72, MT = 72, MB = 72;
+    const TW = PW - ML - MR;
+    let y = MT;
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+    function newPage() {
+      doc.addPage();
+      y = MT;
+    }
+    function checkRoom(needed) { if (y + needed > PH - MB) newPage(); }
+
+    function writeLine(text, opts = {}) {
+      const { size = 11, style = 'normal', color = [20,20,20], align = 'left', lineH = 1.45, maxW = TW } = opts;
+      doc.setFontSize(size);
+      doc.setFont('times', style);
+      doc.setTextColor(...color);
+      const lines = doc.splitTextToSize(String(text), maxW);
+      const lh = size * lineH;
+      checkRoom(lines.length * lh);
+      if (align === 'center') {
+        lines.forEach(l => { doc.text(l, PW / 2, y, { align: 'center' }); y += lh; });
+      } else {
+        doc.text(lines, ML, y);
+        y += lines.length * lh;
+      }
+    }
+
+    function gap(pt = 8) { y += pt; if (y > PH - MB) newPage(); }
+
+    function hRule(thick = 0.5, color = [80,80,80]) {
+      doc.setDrawColor(...color);
+      doc.setLineWidth(thick);
+      doc.line(ML, y, PW - MR, y);
+      y += 4;
+    }
+
+    // ── Parse generated HTML ──────────────────────────────────────────────────
+    const parser = new DOMParser();
+    const htmlDoc = parser.parseFromString(generatedHTML, 'text/html');
+    const topic = document.getElementById('topicInput').value.trim() || 'Research Document';
+
+    // ── Title Page ─────────────────────────────────────────────────────────────
+    y = PH * 0.28;
+    hRule(2, [60,60,60]);
+    gap(18);
+    writeLine(topic, { size: 26, style: 'bold', align: 'center', lineH: 1.3, maxW: TW - 40 });
+    gap(16);
+    hRule(1, [140,140,140]);
+    gap(12);
+    const metaEl  = htmlDoc.querySelector('.title-page .meta');
+    const styleEl = htmlDoc.querySelector('.title-page .style-tag');
+    if (metaEl)  writeLine(metaEl.textContent,  { size: 10, color: [120,120,120], align: 'center' });
+    if (styleEl) { gap(4); writeLine(styleEl.textContent.toUpperCase(), { size: 9, color: [150,130,80], align: 'center' }); }
+
+    // ── Table of Contents ──────────────────────────────────────────────────────
+    newPage();
+    writeLine('TABLE OF CONTENTS', { size: 16, style: 'bold' });
+    gap(4);
+    hRule(1.5);
+    gap(8);
+    const tocItems = htmlDoc.querySelectorAll('.toc-item');
+    tocItems.forEach(item => {
+      const num  = item.querySelector('.toc-num');
+      const text = item.textContent.trim();
+      writeLine(text, { size: 11, color: [40,40,40], lineH: 1.6 });
+    });
+
+    // ── Chapters ───────────────────────────────────────────────────────────────
+    htmlDoc.querySelectorAll('.chapter').forEach((ch, ci) => {
+      newPage();
+
+      // Chapter title (h2)
+      const h2 = ch.querySelector('h2');
+      if (h2) {
+        writeLine(h2.textContent, { size: 18, style: 'bold', lineH: 1.25 });
+        gap(4);
+        hRule(2);
+        gap(10);
+      }
+
+      // Walk children
+      ch.childNodes.forEach(node => {
+        if (node.nodeType !== 1) return; // skip text nodes
+        const tag = node.tagName;
+        if (tag === 'H2') return; // already handled
+
+        if (tag === 'H3') {
+          gap(6);
+          checkRoom(30);
+          writeLine(node.textContent, { size: 13, style: 'bold', color: [30,30,30] });
+          gap(3);
+          hRule(0.5, [180,180,180]);
+          gap(5);
+
+        } else if (tag === 'H4') {
+          gap(5);
+          checkRoom(22);
+          writeLine(node.textContent, { size: 12, style: 'bolditalic', color: [50,50,50] });
+          gap(3);
+
+        } else if (tag === 'P') {
+          const txt = node.textContent.trim();
+          if (!txt) return;
+          // inline bold/em — simplify to plain text (jsPDF doesn't do inline mixed styles easily)
+          writeLine(txt, { size: 11, lineH: 1.55, color: [20,20,20] });
+          gap(5);
+
+        } else if (tag === 'UL' || tag === 'OL') {
+          node.querySelectorAll('li').forEach((li, idx) => {
+            const bullet = tag === 'OL' ? `${idx+1}.` : '•';
+            const txt    = li.textContent.trim();
+            if (!txt) return;
+            const lines = doc.splitTextToSize(txt, TW - 18);
+            const lh = 11 * 1.5;
+            checkRoom(lines.length * lh + 2);
+            doc.setFontSize(11);
+            doc.setFont('times', 'normal');
+            doc.setTextColor(20,20,20);
+            doc.text(bullet, ML + 4, y);
+            doc.text(lines, ML + 18, y);
+            y += lines.length * lh;
+            gap(2);
+          });
+          gap(4);
+
+        } else if (tag === 'STRONG' || tag === 'B') {
+          writeLine(node.textContent, { size: 11, style: 'bold', lineH: 1.55 });
+          gap(5);
+        }
+      });
+    });
+
+    // ── Page numbers ───────────────────────────────────────────────────────────
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let p = 2; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFontSize(9);
+      doc.setFont('times', 'normal');
+      doc.setTextColor(150,150,150);
+      doc.text(`${p - 1}`, PW / 2, PH - 36, { align: 'center' });
+    }
+
+    // ── Save ───────────────────────────────────────────────────────────────────
+    const fname = topic.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '').slice(0, 60) || 'research';
+    doc.save(fname + '.pdf');
+
+  } catch(e) {
+    alert('PDF generation failed: ' + e.message);
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '⬇ Save as PDF File';
+});
+</script>
+</body>
+</html>
