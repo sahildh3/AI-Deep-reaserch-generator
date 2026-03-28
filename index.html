@@ -3,7 +3,22 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Deep Research Generator v10</title>
+<title>Deep Research Generator</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#c9a84c"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="DeepResearch"/>
+<link rel="apple-touch-icon" href="icon-192.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"/>
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png"/>
+
+<!-- SEO -->
+<meta name="description" content="AI-powered long-form research document generator. Free, fast, bilingual-ready."/>
+
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -237,7 +252,15 @@
   }
 
 
-  #previewCard { display:none; }
+  #pwaInstallBtn {
+    display: none; width: 100%; margin-top: 10px; padding: 10px;
+    background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 10px; color: var(--accent); font-size: 13px;
+    font-family: 'Source Serif 4', serif; cursor: pointer;
+    letter-spacing: 0.3px; transition: background 0.2s;
+  }
+  #pwaInstallBtn:hover { background: rgba(201,168,76,0.22); }
+
   #previewFrame { width:100%; height:400px; border:none; border-radius:10px; background:#fff; }
 
   #errorBox {
@@ -371,9 +394,10 @@
 <body>
 <div class="app">
   <header>
-    <h1>Deep Research Generator <span style="font-size:16px;color:var(--muted);font-weight:400;">v8</span></h1>
+    <h1>Deep Research Generator <span style="font-size:16px;color:var(--muted);font-weight:400;">v10</span></h1>
     <p>Enter a topic — get a fully written, multi-section research document</p>
-    <div class="groq-badge"><span>⚡</span> Powered by Groq — Free &amp; Fast</div>
+    <div class="groq-badge"><span>⚡</span> Powered by Groq &amp; Cerebras — Free &amp; Fast</div>
+    <button id="pwaInstallBtn">📲 Install App (Offline Access)</button>
   </header>
 
   <main>
@@ -411,7 +435,7 @@
         <select id="modelSelect">
           <option value="llama-3.3-70b-versatile">Llama 3.3 70B — Best Quality ⭐</option>
           <option value="llama3-70b-8192">Llama 3 70B — Fast</option>
-          <option value="mixtral-8x7b-32768">Mixtral 8x7B — Large Context</option>
+          <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant — Fastest</option>
           <option value="gemma2-9b-it">Gemma 2 9B — Lightweight</option>
         </select>
       </div>
@@ -652,7 +676,7 @@ function getCBModel() { return document.getElementById('cbModelSelect').value; }
 const exhaustedKeys  = new Set();
 let   globalRequestSlot = 0;
 
-function markExhausted(key) { exhaustedKeys.add(key); updateKeyStatusPills(); }
+function markExhausted(key) { exhaustedKeys.add(key); updateKeyStatusPills(); updateKeyStatus(); }
 function isExhausted(key)   { return exhaustedKeys.has(key); }
 
 // ─── Key getters ──────────────────────────────────────────────────────────────
@@ -706,13 +730,10 @@ function updateRouteStatus(slot) {
 function updateKeyStatusPills() {
   const groqKeys = getGroqKeys();
   const cbKeys   = getCBKeys();
-  const deadG    = groqKeys.filter(k => isExhausted(k)).length;
   const deadCB   = cbKeys.filter(k   => isExhausted(k)).length;
 
-  const el = document.getElementById('keyStatus');
-  el.textContent = groqKeys.length
-    ? `✓ ${groqKeys.length} Groq key${groqKeys.length>1?'s':''}${deadG?' ('+deadG+' daily limit)':''}`
-    : '';
+  // BUG FIX: previously also overwrote #keyStatus here, wiping the time estimate
+  // from updateKeyStatus(). Now only updateKeyStatus() writes to #keyStatus.
 
   const cbEl = document.getElementById('cbKeyStatus');
   cbEl.textContent = cbKeys.length
@@ -825,7 +846,13 @@ document.getElementById('testAllBtn').addEventListener('click', async () => {
 window.addEventListener('DOMContentLoaded', () => {
   for (let n = 1; n <= 4; n++) { const s = localStorage.getItem('groq_key_'+n); if (s) document.getElementById('apiKey'+n).value = s; }
   for (let n = 1; n <= 2; n++) { const s = localStorage.getItem('cb_key_'+n);   if (s) document.getElementById('cbKey'+n).value   = s; }
-  const sm = localStorage.getItem('groq_model');    if (sm)  document.getElementById('modelSelect').value   = sm;
+
+  // Migrate deprecated/broken Groq models
+  const DEPRECATED_GROQ = ['mixtral-8x7b-32768'];
+  let sgm = localStorage.getItem('groq_model');
+  if (sgm && DEPRECATED_GROQ.includes(sgm)) { sgm = 'llama-3.3-70b-versatile'; localStorage.setItem('groq_model', sgm); }
+  if (sgm) document.getElementById('modelSelect').value = sgm;
+
   // Migrate deprecated/broken Cerebras models
   // Only list truly removed models here — never list models that appear in the dropdown
   const DEPRECATED_CB = ['llama3.1-70b', 'gpt-oss-120b', 'llama3.3-70b-instruct'];
@@ -853,7 +880,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 [1,2,3,4].forEach(n => document.getElementById('apiKey'+n).addEventListener('input', () => { updateKeyStatus(); updateKeyStatusPills(); }));
 [1,2].forEach(n => document.getElementById('cbKey'+n).addEventListener('input', updateKeyStatusPills));
-document.getElementById('lengthSelect').addEventListener('change', updateKeyStatus);
+document.getElementById('lengthSelect').addEventListener('change', () => { updateKeyStatus(); updateKeyStatusPills(); });
 
 document.getElementById('saveKeyBtn').addEventListener('click', () => {
   for (let n = 1; n <= 4; n++) { const v = document.getElementById('apiKey'+n).value.trim(); v ? localStorage.setItem('groq_key_'+n,v) : localStorage.removeItem('groq_key_'+n); }
@@ -872,23 +899,29 @@ document.getElementById('cbModelSelect').addEventListener('change', () => localS
 
 // ─── Key status / time estimate ───────────────────────────────────────────────
 function updateKeyStatus() {
-  const keys = getActiveKeys();
-  const el   = document.getElementById('keyStatus');
+  const groqKeys = getGroqKeys();
+  const cbKeys   = getCBKeys();
+  const keys     = [...groqKeys, ...cbKeys];
+  const el       = document.getElementById('keyStatus');
   if (!keys.length) { el.textContent = ''; return; }
-  const pages      = parseInt(document.getElementById('lengthSelect').value) || 80;
-  const sections   = calcSections(pages);
-  const count      = Math.min(keys.length, 4);
-  // Each section at 4000 tokens takes ~20-25s with 1 key, less with more keys
-  const secPerSec  = [0, 22, 13, 9, 7][count] || 7;
-  const totalSec   = sections * secPerSec;
-  const mins       = Math.ceil(totalSec / 60);
-  const timeStr    = mins >= 60 ? `~${Math.floor(mins/60)}h ${mins%60}m` : `~${mins} min`;
-  el.textContent   = `✓ ${keys.length} key${keys.length>1?'s':''} active — ${sections} sections, est. time: ${timeStr}`;
+  const deadG   = groqKeys.filter(k => isExhausted(k)).length;
+  const pages   = parseInt(document.getElementById('lengthSelect').value) || 80;
+  const sections = calcSections(pages);
+  const count   = Math.min(keys.length, 4);
+  const secPerSec = [0, 22, 13, 9, 7][count] || 7;
+  const totalSec  = sections * secPerSec;
+  const mins      = Math.ceil(totalSec / 60);
+  const timeStr   = mins >= 60 ? `~${Math.floor(mins/60)}h ${mins%60}m` : `~${mins} min`;
+  const groqStr   = groqKeys.length ? `${groqKeys.length} Groq${deadG ? ` (${deadG} limited)` : ''}` : '';
+  const cbStr     = cbKeys.length   ? `${cbKeys.length} Cerebras` : '';
+  const keyParts  = [groqStr, cbStr].filter(Boolean).join(' + ');
+  el.textContent  = `✓ ${keyParts} — ${sections} sections, est. ${timeStr}`;
 }
 
 // ─── Sections calc ────────────────────────────────────────────────────────────
-// Each section at 6000 tokens fills ~5-6 printed pages, so divide by 3
-function calcSections(pages) { return Math.max(5, Math.round(pages / 3)); }
+// Each section at 6000 tokens fills ~5 printed pages, so divide by 5
+// BUG FIX: was pages/3 causing documents 1.5-2x longer than requested
+function calcSections(pages) { return Math.max(5, Math.round(pages / 5)); }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -1598,7 +1631,7 @@ document.getElementById('generateBtn').addEventListener('click', async () => {
   if (!topic) { showError('Please enter a research topic.'); return; }
 
   const apiKeys = getActiveKeys();
-  if (apiKeys.length === 0) { showError('Please enter at least one Groq or OpenRouter API key.'); return; }
+  if (apiKeys.length === 0) { showError('Please enter at least one Groq or Cerebras API key.'); return; }
 
   hideError();
   generatedHTML = '';
@@ -1886,10 +1919,12 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
 
     function writeLine(text, opts = {}) {
       const { size = 11, style = 'normal', color = [20,20,20], align = 'left', lineH = 1.45, maxW = TW } = opts;
+      const safeText = String(text || '').trim();
+      if (!safeText) return; // BUG FIX: skip empty lines — jsPDF splitTextToSize crashes on ''
       doc.setFontSize(size);
       doc.setFont('times', style);
       doc.setTextColor(...color);
-      const lines = doc.splitTextToSize(String(text), maxW);
+      const lines = doc.splitTextToSize(safeText, maxW);
       const lh = size * lineH;
       checkRoom(lines.length * lh);
       if (align === 'center') {
@@ -2026,6 +2061,36 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
 
   btn.disabled = false;
   btn.innerHTML = '⬇ Save as PDF File';
+});
+
+// ─── PWA: Service Worker Registration ────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('[SW] Registered, scope:', reg.scope))
+      .catch(err => console.warn('[SW] Registration failed:', err));
+  });
+}
+
+// ─── PWA: Install Prompt ──────────────────────────────────────────────────────
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('pwaInstallBtn');
+  btn.style.display = 'block';
+  btn.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === 'accepted') btn.style.display = 'none';
+    deferredInstallPrompt = null;
+  }, { once: true });
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('pwaInstallBtn').style.display = 'none';
+  deferredInstallPrompt = null;
 });
 </script>
 </body>
